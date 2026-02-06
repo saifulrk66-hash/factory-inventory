@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Factory Inventory System - Dashboard</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+body{margin:0;font-family:Segoe UI;background:#e9eef3;}
+.topbar{background:#2f3e4d;color:white;padding:8px 12px;display:flex;align-items:center}
+.menu-btn{font-size:22px;cursor:pointer;margin-right:10px}
+.menu{position:fixed;top:0;left:-220px;width:200px;height:100%;background:#f5f5f5;
+border-right:1px solid #aaa;padding:10px;transition:.3s;z-index:1000}
+.menu button{width:100%;padding:10px;margin-bottom:6px;border:1px solid #888;background:#ddd;text-align:left;cursor:pointer;font-weight:bold}
+
+.content{padding:10px;margin-top:10px}
+.section{display:none}
+
+.form-box{background:white;padding:15px;border-radius:6px;margin-bottom:10px;box-shadow:0 2px 4px rgba(0,0,0,0.1)}
+.form-row{display:grid;grid-template-columns:110px 1fr;margin-bottom:6px}
+.form-row input,.form-row select{height:22px;font-size:12px}
+
+.table-box{margin-top:10px;max-height:60vh;overflow:auto;background:white}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th,td{border:1px solid #888;padding:4px;text-align:center}
+th{background:#ccc}
+.action-btn{cursor:pointer;padding:2px 6px}
+
+/* --- Dashboard & Summary Cards --- */
+.search-summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 15px; }
+.sum-card { background: #1a456e; color: white; padding: 12px; border-radius: 6px; text-align: center; border-bottom: 3px solid #ffc107; }
+.sum-card span { display: block; font-size: 10px; text-transform: uppercase; margin-bottom: 4px; opacity: 0.9; }
+.sum-card b { font-size: 16px; }
+.balance-card { background: #28a745; border-bottom: 3px solid #fff; }
+
+.highlight-row { background-color: #ffffcc !important; font-weight: bold; }
+
+/* Sub Menu for Model Section */
+.sub-menu { display: flex; gap: 5px; margin-bottom: 10px; }
+.sub-menu button { flex: 1; padding: 5px; font-size: 11px; cursor: pointer; }
+
+/* Calculator UI Style */
+.calc-container { background: #ced4da; padding: 15px; border-radius: 8px; max-width: 360px; margin: 10px auto; color: #333; box-shadow: 0 4px 10px rgba(0,0,0,0.2); }
+.calc-header { background: #1a456e; color: white; padding: 10px; border-radius: 5px 5px 0 0; text-align: center; margin-bottom: 12px; }
+.calc-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 8px; }
+.calc-item label { font-size: 12px; display: block; margin-bottom: 3px; color: #444; }
+.calc-item select, .calc-item input { width: 100%; background: #1a456e; color: white; border: none; padding: 10px; border-radius: 4px; text-align: center; font-weight: bold; font-size: 14px; box-sizing: border-box; }
+.part-display { display: grid; grid-template-columns: 1fr 1fr; background: #1a456e; color: white; padding: 12px; text-align: center; font-size: 18px; margin-bottom: 12px; border-radius: 4px; }
+.final-results { display: flex; gap: 12px; margin-bottom: 12px; }
+.res-box { flex: 1; background: #1a456e; color: white; padding: 12px; text-align: center; font-size: 20px; border-radius: 4px; font-weight: bold; }
+.grand-total { background: #888; color: white; padding: 15px; text-align: center; font-size: 26px; border-radius: 4px; font-weight: bold; border: 1px solid #777; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="menu-btn" onclick="toggleMenu()">☰</div>
+  <b>Inventory Dashboard</b>
+</div>
+
+<div class="menu" id="menu">
+  <button onclick="show('dashboard')">📊 Dashboard</button>
+  <button onclick="show('entry')">Data Entry</button>
+  <button onclick="show('incoming')">Incoming Data</button>
+  <button onclick="show('pending')">Pending Item</button>
+  <button onclick="show('database')">Database</button>
+  <button onclick="show('model_calc')">Model Calculation</button>
+  <button onclick="show('search')">Search Item</button>
+</div>
+
+<div class="content">
+
+<div id="dashboard" class="section">
+    <h3 style="margin-top:0">Factory Overview</h3>
+    <div class="search-summary">
+        <div class="sum-card" style="background:#2980b9">
+            <span>Total Incoming</span>
+            <b id="dash_totalIn">0.00</b>
+        </div>
+        <div class="sum-card" style="background:#c0392b">
+            <span>Total Issued</span>
+            <b id="dash_totalOut">0.00</b>
+        </div>
+        <div class="sum-card balance-card">
+            <span>Current Stock</span>
+            <b id="dash_balance">0.00</b>
+        </div>
+    </div>
+
+    <div class="form-box">
+        <h4 style="margin-top:0; border-bottom:1px solid #ddd; padding-bottom:5px">Recent Activity</h4>
+        <div id="recent_activity" style="font-size: 13px; line-height: 1.8; color: #444;">
+            Loading activity...
+        </div>
+    </div>
+</div>
+
+<div id="search" class="section">
+    <div class="form-box">
+        <h4>Search & Summary</h4>
+        <div class="search-summary" id="searchSummary">
+            <div class="sum-card"><span>In (Filtered)</span><b id="sumIn">0.00</b></div>
+            <div class="sum-card"><span>Out (Filtered)</span><b id="sumOut">0.00</b></div>
+            <div class="sum-card balance-card"><span>Balance</span><b id="sumBal">0.00</b></div>
+        </div>
+        <div id="entrySearch">
+          <div class="form-row"><label>PI No</label><input id="s_pi" oninput="searchItem()"></div>
+          <div class="form-row"><label>Colour</label><input id="s_colour_entry" oninput="searchItem()"></div>
+        </div>
+        <div id="incomingSearch" style="display:none">
+          <div class="form-row"><label>Colour</label><input id="s_colour_incoming" oninput="searchItem()"></div>
+        </div>
+        <div id="pendingSearch" style="display:none">
+          <div class="form-row"><label>PI No</label><input id="s_pi_pending" oninput="searchItem()"></div>
+        </div>
+        <div class="form-row">
+            <label>Data Type</label>
+            <select id="s_type" onchange="setupSearchForm(); searchItem()">
+                <option value="entry">Entry</option>
+                <option value="incoming">Incoming</option>
+                <option value="pending">Pending</option>
+            </select>
+        </div>
+    </div>
+    <div class="table-box"><table id="searchTable"></table></div>
+</div>
+
+<div id="entry" class="section">
+    <div class="form-box">
+    <h4>Data Entry</h4>
+    <div class="form-row"><label>Date</label><input id="e_date" type="date"></div>
+    <div class="form-row"><label>PI No</label><input id="e_pi"></div>
+    <div class="form-row"><label>Model</label><input id="e_model"></div>
+    <div class="form-row">
+    <label>Colour</label>
+    <select id="e_colour" onchange="toggleCustom(this,'e_custom'); updateBatchList()">
+    <option value="">Select Colour</option>
+    <option>Red</option><option>Black</option><option>White</option>
+    <option>Pearl</option><option value="custom">Other</option>
+    </select>
+    </div>
+    <div class="form-row" id="e_custom" style="display:none">
+    <label>Custom Colour</label><input id="e_colour_custom" oninput="updateBatchList()">
+    </div>
+    <div class="form-row"><label>Set</label><input id="e_set" type="text" inputmode="numeric"></div>
+    <div class="form-row"><label>Need</label><input id="e_need" type="text" inputmode="numeric"></div>
+    <div class="form-row"><label>Issue</label><input id="e_issue" type="text" inputmode="numeric"></div>
+    <div class="form-row">
+      <label>Batch</label>
+      <input list="batch_list" id="e_batch" placeholder="Select or type batch">
+      <datalist id="batch_list"></datalist>
+    </div>
+    <button onclick="saveEntry()">Save</button>
+    </div>
+    <div class="table-box"><table id="entryTable"></table></div>
+</div>
+
+<div id="incoming" class="section">
+    <div class="form-box">
+    <h4>Incoming Data</h4>
+    <div class="form-row"><label>Date</label><input id="i_date" type="date"></div>
+    <div class="form-row">
+    <label>Colour</label>
+    <select id="i_colour" onchange="toggleCustom(this,'i_custom')">
+    <option>Red</option><option>Black</option><option>White</option>
+    <option>Pearl</option><option value="custom">Other</option>
+    </select>
+    </div>
+    <div class="form-row" id="i_custom" style="display:none">
+    <label>Custom</label><input id="i_colour_custom">
+    </div>
+    <div class="form-row"><label>Total</label><input id="i_total" type="text" inputmode="numeric"></div>
+    <div class="form-row"><label>Batch</label><input id="i_batch"></div>
+    <button onclick="saveIncoming()">Save</button>
+    </div>
+    <div class="table-box"><table id="incomingTable"></table></div>
+</div>
+
+<div id="pending" class="section">
+    <div class="form-box">
+    <h4>Pending Item</h4>
+    <div class="form-row"><label>PI</label><input id="p_pi"></div>
+    <div class="form-row"><label>Model</label><input id="p_model"></div>
+    <div class="form-row"><label>Colour</label><input id="p_colour"></div>
+    <button onclick="savePending()">Save</button>
+    </div>
+    <div class="table-box"><table id="pendingTable"></table></div>
+</div>
+
+<div id="database" class="section">
+    <h4>Database View</h4>
+    <select onchange="loadDatabase(this.value)">
+    <option value="entry">Entry</option>
+    <option value="incoming">Incoming</option>
+    <option value="pending">Pending</option>
+    </select>
+    <div class="table-box"><table id="dbTable"></table></div>
+</div>
+
+<div id="model_calc" class="section">
+    <h4>Model Calculation</h4>
+    <div class="sub-menu">
+        <button onclick="showModelTab('m_entry')">Model Entry</button>
+        <button onclick="showModelTab('m_search')">Model Search</button>
+        <button onclick="showModelTab('m_db')">Database</button>
+    </div>
+    <div id="m_entry" class="model-tab">
+        <div class="form-box">
+            <div class="form-row"><label>Model</label><input id="m_model"></div>
+            <div class="form-row"><label>Combination</label><input id="m_comb"></div>
+            <div class="form-row">
+                <label>HL/FL</label>
+                <select id="m_hlfl">
+                    <option value="">Select</option>
+                    <option>HL</option>
+                    <option>FL</option>
+                </select>
+            </div>
+            <div class="form-row"><label>L/Part</label><input id="m_lpart"></div>
+            <div class="form-row"><label>S/Part</label><input id="m_spart"></div>
+            <button onclick="saveModel()">Submit</button>
+        </div>
+    </div>
+    <div id="m_search" class="model-tab" style="display:none">
+        <div class="calc-container">
+            <div class="calc-header">
+                <input list="ms_model_list" id="ms_model" onchange="updateCombs(); calcModel()" placeholder="Search or Select Model" style="background:transparent; color:white; border:none; font-size:18px; width:100%; outline:none; text-align:center;">
+                <datalist id="ms_model_list"></datalist>
+            </div>
+            <div class="calc-grid">
+                <div class="calc-item"><label>Combination</label><select id="ms_comb" onchange="updateTypes(); calcModel()"><option value="">Select</option></select></div>
+                <div class="calc-item"><label>Type</label><select id="ms_hlfl" onchange="calcModel()"><option value="">Select</option></select></div>
+            </div>
+            <div class="part-display"><span id="res_lpart">0.00</span><span id="res_spart">0.00</span></div>
+            <div class="calc-grid">
+                <div class="calc-item">
+                    <label>Allowance</label>
+                    <select id="ms_allowance" class="allowance-select" onchange="calcModel()">
+                        <option value="0.55">0.55</option><option value="0.6">0.6</option><option value="0.7">0.7</option><option value="0.75">0.75</option>
+                    </select>
+                </div>
+                <div class="calc-item"><label>Set</label><input id="ms_set" type="number" value="1" min="1" oninput="calcModel()"></div>
+            </div>
+            <div class="final-results"><div class="res-box" id="final_lpart">0.00</div><div class="res-box" id="final_spart">0.00</div></div>
+            <div class="grand-total" id="grand_total">0.00</div>
+        </div>
+    </div>
+    <div id="m_db" class="model-tab" style="display:none">
+        <div class="table-box"><table id="modelDbTable"></table></div>
+    </div>
+</div>
+
+</div>
+
+<script>
+let entryData=JSON.parse(localStorage.getItem("entry"))||[]
+let incomingData=JSON.parse(localStorage.getItem("incoming"))||[]
+let pendingData=JSON.parse(localStorage.getItem("pending"))||[]
+let modelData=JSON.parse(localStorage.getItem("modelData"))||[]
+let editIndex=null, editType=null
+
+function toggleMenu(){
+ menu.style.left = menu.style.left=="0px" ? "-220px" : "0px"
+}
+
+// Update Dashboard Logic
+function updateDashboard() {
+    let totalIn = incomingData.reduce((sum, item) => sum + (parseFloat(item.total) || 0), 0);
+    let totalOut = entryData.reduce((sum, item) => sum + (parseFloat(item.issue) || 0), 0);
+    
+    document.getElementById("dash_totalIn").innerText = totalIn.toFixed(2);
+    document.getElementById("dash_totalOut").innerText = totalOut.toFixed(2);
+    document.getElementById("dash_balance").innerText = (totalIn - totalOut).toFixed(2);
+
+    let recent = entryData.slice(-4).reverse();
+    let activityHtml = recent.length > 0 ? "" : "No data available.";
+    recent.forEach(r => {
+        activityHtml += `<div style="padding:5px 0; border-bottom:1px dashed #eee;">🚩 <b>PI: ${r.pi}</b> - Issued ${r.issue} for ${r.model} (${r.date})</div>`;
+    });
+    document.getElementById("recent_activity").innerHTML = activityHtml;
+}
+
+function show(id){
+ menu.style.left="-220px"
+ document.querySelectorAll(".section").forEach(s=>s.style.display="none")
+ document.getElementById(id).style.display="block"
+ 
+ if(id=="dashboard") updateDashboard();
+ if(id=="entry") { renderEntry(); updateBatchList(); }
+ if(id=="incoming") renderIncoming()
+ if(id=="pending") renderPending()
+ if(id=="database") loadDatabase("entry")
+ if(id=="search") searchItem()
+ if(id=="model_calc") showModelTab('m_entry')
+ setupSearchForm()
+}
+
+function searchItem(){
+    let type = document.getElementById("s_type").value;
+    let s_pi = "", s_clr = "";
+
+    if(type=="entry"){
+        s_pi = document.getElementById("s_pi").value.toLowerCase();
+        s_clr = document.getElementById("s_colour_entry").value.toLowerCase();
+    } else if(type=="incoming"){
+        s_clr = document.getElementById("s_colour_incoming").value.toLowerCase();
+    } else if(type=="pending"){
+        s_pi = document.getElementById("s_pi_pending").value.toLowerCase();
+    }
+
+    let totalIn = 0, totalOut = 0;
+    incomingData.forEach(d => {
+        let matchClr = s_clr !== "" && (d.colour||"").toLowerCase().includes(s_clr);
+        let matchBatch = s_pi !== "" && (d.batch||"").toLowerCase().includes(s_pi);
+        if(matchClr || matchBatch) totalIn += parseFloat(d.total) || 0;
+    });
+
+    entryData.forEach(d => {
+        let matchClr = s_clr !== "" && (d.colour||"").toLowerCase().includes(s_clr);
+        let matchPI = s_pi !== "" && (d.pi||"").toLowerCase().includes(s_pi);
+        if(matchClr || matchPI) totalOut += parseFloat(d.issue) || 0;
+    });
+
+    document.getElementById("sumIn").innerText = totalIn.toFixed(2);
+    document.getElementById("sumOut").innerText = totalOut.toFixed(2);
+    document.getElementById("sumBal").innerText = (totalIn - totalOut).toFixed(2);
+
+    let allData = (type=="entry") ? entryData : (type=="incoming") ? incomingData : pendingData;
+    let matchedRows = [], normalRows = [];
+
+    allData.forEach(d => {
+        let isMatch = false;
+        if(type=="entry") isMatch = (s_pi !== "" || s_clr !== "") && (d.pi||"").toLowerCase().includes(s_pi) && (d.colour||"").toLowerCase().includes(s_clr);
+        else if(type=="incoming") isMatch = (s_clr !== "") && (d.colour||"").toLowerCase().includes(s_clr);
+        else if(type=="pending") isMatch = (s_pi !== "") && (d.pi||"").toLowerCase().includes(s_pi);
+
+        if(isMatch) matchedRows.push(d);
+        else normalRows.push(d);
+    });
+
+    let finalData = [...matchedRows, ...normalRows];
+    let t = "<tr>";
+    if(finalData.length > 0) {
+        Object.keys(finalData[0]).forEach(k => t += `<th>${k.toUpperCase()}</th>`);
+        t += "</tr>";
+        finalData.forEach(d => {
+            let isM = matchedRows.includes(d);
+            t += `<tr ${isM ? 'class="highlight-row"' : ''}>` + Object.values(d).map(v => `<td>${v}</td>`).join("") + "</tr>";
+        });
+    } else {
+        t = "<tr><td>No Data Found</td></tr>";
+    }
+    document.getElementById("searchTable").innerHTML = t;
+}
+
+function setupSearchForm(){
+ let type=document.getElementById("s_type").value;
+ document.getElementById("entrySearch").style.display="none"; document.getElementById("incomingSearch").style.display="none"; document.getElementById("pendingSearch").style.display="none";
+ if(type=="entry") document.getElementById("entrySearch").style.display="block";
+ if(type=="incoming") document.getElementById("incomingSearch").style.display="block";
+ if(type=="pending") document.getElementById("pendingSearch").style.display="block";
+}
+
+function toggleCustom(sel,row){ document.getElementById(row).style.display = sel.value=="custom"?"grid":"none" }
+
+function updateBatchList() {
+    let selectedColour = e_colour.value == "custom" ? e_colour_custom.value : e_colour.value;
+    let list = document.getElementById("batch_list");
+    list.innerHTML = ""; if(!selectedColour) return;
+    let batches = [...new Set(incomingData.filter(d => (d.colour || "").toLowerCase() === selectedColour.toLowerCase()).map(d => d.batch))];
+    batches.forEach(b => { let option = document.createElement("option"); option.value = b; list.appendChild(option); });
+}
+
+function saveEntry(){
+ let colour = e_colour.value=="custom"?e_colour_custom.value:e_colour.value
+ let obj={date:e_date.value,pi:e_pi.value,model:e_model.value,colour:colour,set:e_set.value,need:e_need.value,issue:e_issue.value,batch:e_batch.value}
+ if(editType=="entry"){entryData[editIndex]=obj} else entryData.push(obj)
+ localStorage.setItem("entry",JSON.stringify(entryData)); clearEntry(); renderEntry(); updateDashboard();
+}
+
+function renderEntry(){
+ let t="<tr><th>Date</th><th>PI</th><th>Model</th><th>Colour</th><th>Set</th><th>Need</th><th>Issue</th><th>Batch</th><th>Action</th></tr>"
+ entryData.forEach((d,i)=>{ t+=`<tr><td>${d.date}</td><td>${d.pi}</td><td>${d.model}</td><td>${d.colour}</td><td>${d.set}</td><td>${d.need}</td><td>${d.issue}</td><td>${d.batch}</td><td><span class="action-btn" onclick="editEntry(${i})">✏️</span> <span class="action-btn" onclick="delEntry(${i})">🗑</span></td></tr>` })
+ entryTable.innerHTML=t
+}
+
+function editEntry(i){
+ let d=entryData[i]; e_date.value=d.date; e_pi.value=d.pi; e_model.value=d.model; e_set.value=d.set; e_need.value=d.need; e_issue.value=d.issue; e_batch.value=d.batch;
+ let standardColours=["Red","Black","White","Pearl"];
+ if(standardColours.includes(d.colour)){e_colour.value=d.colour; e_custom.style.display="none"} else {e_colour.value="custom"; e_colour_custom.value=d.colour; e_custom.style.display="grid"}
+ updateBatchList(); editIndex=i; editType="entry";
+}
+
+function delEntry(i){ if(confirm("Delete?")){ entryData.splice(i,1); localStorage.setItem("entry",JSON.stringify(entryData)); renderEntry(); updateDashboard(); } }
+function clearEntry(){ document.querySelectorAll("#entry input").forEach(i=>i.value=""); e_colour.value = ""; e_custom.style.display = "none"; editIndex=null; editType=null; }
+
+function saveIncoming(){
+ let colour = i_colour.value=="custom"?i_colour_custom.value:i_colour.value
+ let obj={date:i_date.value,colour:colour,total:i_total.value,batch:i_batch.value}
+ if(editType=="incoming"){incomingData[editIndex]=obj} else incomingData.push(obj)
+ localStorage.setItem("incoming",JSON.stringify(incomingData)); document.querySelectorAll("#incoming input").forEach(i=>i.value=""); renderIncoming(); updateDashboard();
+}
+
+function renderIncoming(){
+ let t="<tr><th>Date</th><th>Colour</th><th>Total</th><th>Batch</th><th>Action</th></tr>"
+ incomingData.forEach((d,i)=>{ t+=`<tr><td>${d.date}</td><td>${d.colour}</td><td>${d.total}</td><td>${d.batch}</td><td><span class="action-btn" onclick="editIncoming(${i})">✏️</span> <span class="action-btn" onclick="delIncoming(${i})">🗑</span></td></tr>` })
+ incomingTable.innerHTML=t
+}
+
+function editIncoming(i){ let d=incomingData[i]; i_date.value=d.date; i_total.value=d.total; i_batch.value=d.batch; i_colour.value=d.colour; editIndex=i; editType="incoming" }
+function delIncoming(i){ if(confirm("Delete?")){ incomingData.splice(i,1); localStorage.setItem("incoming",JSON.stringify(incomingData)); renderIncoming(); updateDashboard(); } }
+
+function savePending(){
+ let obj={pi:p_pi.value,model:p_model.value,colour:p_colour.value}
+ if(editType=="pending"){pendingData[editIndex]=obj} else pendingData.push(obj)
+ localStorage.setItem("pending",JSON.stringify(pendingData)); document.querySelectorAll("#pending input").forEach(i=>i.value=""); renderPending()
+}
+
+function renderPending(){
+ let t="<tr><th>PI</th><th>Model</th><th>Colour</th><th>Action</th></tr>"
+ pendingData.forEach((d,i)=>{ t+=`<tr><td>${d.pi}</td><td>${d.model}</td><td>${d.colour}</td><td><span class="action-btn" onclick="editPending(${i})">✏️</span> <span class="action-btn" onclick="delPending(${i})">🗑</span></td></tr>` })
+ pendingTable.innerHTML=t
+}
+
+function editPending(i){ let d=pendingData[i]; p_pi.value=d.pi; p_model.value=d.model; p_colour.value=d.colour; editIndex=i; editType="pending"; }
+function delPending(i){ if(confirm("Delete?")){ pendingData.splice(i,1); localStorage.setItem("pending",JSON.stringify(pendingData)); renderPending(); } }
+
+function loadDatabase(type){
+ let data=type=="entry"?entryData:type=="incoming"?incomingData:pendingData;
+ let t="<tr>"; if(data.length>0){ Object.keys(data[0]).forEach(k=>t+=`<th>${k.toUpperCase()}</th>`); t+="</tr>"; data.forEach(d=>{ t+="<tr>"; Object.values(d).forEach(v=>t+=`<td>${v}</td>`); t+="</tr>" }); } else { t="<tr><td>No Data</td></tr>" }
+ dbTable.innerHTML=t;
+}
+
+// MODEL CALC FUNCTIONS
+function showModelTab(tabId){
+    document.querySelectorAll(".model-tab").forEach(t=>t.style.display="none");
+    document.getElementById(tabId).style.display="block";
+    if(tabId == 'm_db') renderModelDb();
+    if(tabId == 'm_search') populateModels(); 
+}
+function saveModel(){
+    let obj={model:m_model.value,comb:m_comb.value,hlfl:m_hlfl.value,lpart:m_lpart.value,spart:m_spart.value}
+    if(editType=="model"){modelData[editIndex]=obj} else {modelData.push(obj)}
+    localStorage.setItem("modelData", JSON.stringify(modelData));
+    alert("Saved!"); m_model.value=""; m_comb.value=""; m_hlfl.value=""; m_lpart.value=""; m_spart.value="";
+    editIndex=null; editType=null;
+}
+function renderModelDb(){
+    let t="<tr><th>Model</th><th>Combination</th><th>HL/FL</th><th>L/Part</th><th>S/Part</th><th>Action</th></tr>";
+    // Natural Sort in DB view as well
+    let sortedModelData = [...modelData].sort((a,b) => a.model.localeCompare(b.model, undefined, {numeric: true}));
+    sortedModelData.forEach((d,i)=>{ t+=`<tr><td>${d.model}</td><td>${d.comb}</td><td>${d.hlfl}</td><td>${d.lpart}</td><td>${d.spart}</td><td><span class="action-btn" onclick="editModel(${i})">✏️</span> <span class="action-btn" onclick="delModel(${i})">🗑</span></td></tr>` });
+    modelDbTable.innerHTML=t;
+}
+function editModel(i){ let d=modelData[i]; m_model.value=d.model; m_comb.value=d.comb; m_hlfl.value=d.hlfl; m_lpart.value=d.lpart; m_spart.value=d.spart; editIndex=i; editType="model"; showModelTab('m_entry'); }
+function delModel(i){ if(confirm("Delete?")){ modelData.splice(i,1); localStorage.setItem("modelData", JSON.stringify(modelData)); renderModelDb(); } }
+
+function populateModels() {
+    let mList = document.getElementById("ms_model_list");
+    // Sort models numerically (2005, 2374, 3213 etc.)
+    let models = [...new Set(modelData.map(d => d.model))].sort((a, b) => a.localeCompare(b, undefined, {numeric: true, sensitivity: 'base'}));
+    mList.innerHTML = models.map(m => `<option value="${m}">`).join("");
+}
+
+function updateCombs() {
+    let val = document.getElementById("ms_model").value;
+    let combs = [...new Set(modelData.filter(d => d.model === val).map(d => d.comb))].sort();
+    document.getElementById("ms_comb").innerHTML = '<option value="">Select</option>' + combs.map(c => `<option value="${c}">${c}</option>`).join("");
+}
+function updateTypes() {
+    let m = document.getElementById("ms_model").value;
+    let c = document.getElementById("ms_comb").value;
+    let types = [...new Set(modelData.filter(d => d.model === m && d.comb === c).map(d => d.hlfl))].sort();
+    document.getElementById("ms_hlfl").innerHTML = '<option value="">Select</option>' + types.map(t => `<option value="${t}">${t}</option>`).join("");
+}
+
+function calcModel() {
+    let m = document.getElementById("ms_model").value;
+    let c = document.getElementById("ms_comb").value;
+    let h = document.getElementById("ms_hlfl").value;
+    
+    let alw = parseFloat(document.getElementById("ms_allowance").value) || 1;
+    let set = parseFloat(document.getElementById("ms_set").value) || 0;
+    
+    let res = modelData.find(d => d.model === m && d.comb === c && d.hlfl === h);
+    
+    if (res) {
+        let lp = parseFloat(res.lpart) || 0;
+        let sp = parseFloat(res.spart) || 0;
+        
+        document.getElementById("res_lpart").innerText = lp.toFixed(2);
+        document.getElementById("res_spart").innerText = sp.toFixed(2);
+        
+        let finalLp = (lp / alw) * set;
+        let finalSp = (sp / alw) * set;
+        
+        document.getElementById("final_lpart").innerText = finalLp.toFixed(2);
+        document.getElementById("final_spart").innerText = finalSp.toFixed(2);
+        
+        document.getElementById("grand_total").innerText = (finalLp + finalSp).toFixed(2);
+    } else {
+        ["res_lpart", "res_spart", "final_lpart", "final_spart", "grand_total"].forEach(id => {
+            document.getElementById(id).innerText = "0.00";
+        });
+    }
+}
+
+// Initial View
+show("dashboard");
+</script>
+</body>
+</html>
